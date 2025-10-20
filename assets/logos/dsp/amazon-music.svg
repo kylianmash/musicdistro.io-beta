@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 96" role="presentation" aria-hidden="true" focusable="false">
+  <g fill="currentColor" font-family="'Amazon Ember', 'Manrope', 'Helvetica Neue', Arial, sans-serif" font-weight="600">
+    <text x="8" y="44" font-size="40" letter-spacing="1">amazon</text>
+    <text x="12" y="76" font-size="36" letter-spacing="2">music</text>
+  </g>
+  <path fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" d="M14 84c28 16 60 24 92 24s64-8 92-24"/>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="itunesGradient" cx="30%" cy="30%" r="80%">
+      <stop offset="0%" stop-color="#FF77B7" />
+      <stop offset="50%" stop-color="#FF3F6A" />
+      <stop offset="100%" stop-color="#B414FF" />
+    </radialGradient>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#itunesGradient)" />
+  <path fill="#fff" d="M42 16 24 19.6v20.9c-1.4-.9-3.2-1.4-5-1.4-3.9 0-7 2.4-7 5.4S15.1 49 19 49c3.7 0 6.6-2.2 7-5V26.6l16-3.2V36c-1.4-.9-3.2-1.4-5-1.4-3.9 0-7 2.4-7 5.4S31.1 45 35 45c3.7 0 6.6-2.2 7-5V16Z"/>
+</svg>

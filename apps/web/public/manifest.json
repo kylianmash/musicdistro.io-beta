@@ -1,0 +1,10 @@
+{
+  "name": "MusicDistro Studio",
+  "short_name": "Studio",
+  "description": "Pro-grade web DAW for recording, arranging, and mixing music.",
+  "start_url": "/studio",
+  "display": "standalone",
+  "background_color": "#0F1115",
+  "theme_color": "#10B981",
+  "icons": []
+}

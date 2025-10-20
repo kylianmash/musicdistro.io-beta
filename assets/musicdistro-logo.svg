@@ -1,0 +1,19 @@
+<svg width="280" height="64" viewBox="-17.5 -4 315 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="md-orb" x1="16" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#A855F7"/>
+    </linearGradient>
+    <linearGradient id="md-wave" x1="46" y1="16" x2="46" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#F97316"/>
+    </linearGradient>
+  </defs>
+  <g aria-hidden="true">
+    <circle cx="36" cy="32" r="28" fill="url(#md-orb)" opacity="0.14"/>
+    <circle cx="36" cy="32" r="22" stroke="url(#md-orb)" stroke-width="4" fill="none"/>
+    <path d="M36 16C45.941 16 52 23.094 52 32C52 40.906 45.941 48 36 48" stroke="url(#md-wave)" stroke-width="5" stroke-linecap="round" fill="none"/>
+    <path d="M28 24L42 32L28 40V24Z" fill="#F8FAFC"/>
+  </g>
+  <text x="80" y="42" font-family="'Space Grotesk', 'Inter', 'Segoe UI', sans-serif" font-size="30" font-weight="600" letter-spacing="0.02em" fill="#F8FAFC">MusicDistro.io</text>
+</svg>
