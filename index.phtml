@@ -1,0 +1,2551 @@
+<?php
+declare(strict_types=1);
+
+$isHttps = (
+  (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off') ||
+  (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strpos((string) $_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') !== false)
+);
+
+$hostHeader = $_SERVER['HTTP_HOST'] ?? '';
+$requestUri = $_SERVER['REQUEST_URI'] ?? '/';
+$requestPath = parse_url($requestUri, PHP_URL_PATH);
+if (!is_string($requestPath) || $requestPath === '') {
+  $requestPath = '/';
+}
+
+$pathSegments = array_values(array_filter(
+  explode('/', trim($requestPath, '/')),
+  static function ($segment): bool {
+    return $segment !== '';
+  }
+));
+
+$rawLanguageFromPath = null;
+if (count($pathSegments) === 1) {
+  $candidate = strtolower($pathSegments[0]);
+  if (preg_match('/^[a-z]{2}$/', $candidate) === 1) {
+    $rawLanguageFromPath = $candidate;
+    $_GET['lang'] = $candidate;
+  }
+}
+$hostParts = explode(':', $hostHeader, 2);
+$normalizedHost = strtolower($hostParts[0] ?? '');
+
+$allowedHosts = [
+  'musicdistro.io',
+  'www.musicdistro.io',
+  'distrofree.com',
+  'www.distrofree.com',
+];
+$primaryHost = 'www.musicdistro.io';
+
+$shouldRedirectToPrimary = !in_array($normalizedHost, $allowedHosts, true)
+  || $normalizedHost !== $primaryHost;
+$redirectHost = $shouldRedirectToPrimary
+  ? $primaryHost
+  : $normalizedHost;
+
+if (!$isHttps || $redirectHost !== $normalizedHost) {
+  $targetUrl = 'https://' . $redirectHost . $requestUri;
+  header('Location: ' . $targetUrl, true, 301);
+  exit;
+}
+
+require __DIR__ . '/bootstrap.php';
+
+$siteName = site_name();
+$faviconUrl = site_favicon_url();
+$siteLogoUrl = site_logo_url();
+$structuredLogoUrl = app_url(ltrim($siteLogoUrl, '/'));
+
+$availableLanguages = available_languages();
+$currentLanguage = current_language();
+$languagePath = '/' . $currentLanguage . '/';
+$normalizedRequestPath = $requestPath === '/' ? '/' : rtrim($requestPath, '/') . '/';
+$pathIsHomepage = count($pathSegments) === 0
+  || (count($pathSegments) === 1
+    && ($rawLanguageFromPath !== null || strtolower((string) $pathSegments[0]) === 'index.phtml'));
+
+if ($pathIsHomepage && $normalizedRequestPath !== $languagePath) {
+  $queryString = $_SERVER['QUERY_STRING'] ?? '';
+  $targetUrl = 'https://' . $redirectHost . $languagePath;
+  if ($queryString !== '') {
+    $targetUrl .= '?' . $queryString;
+  }
+
+  header('Location: ' . $targetUrl, true, 301);
+  exit;
+}
+
+$currentUser = current_user();
+$languageSwitcherHtml = render_language_switcher('nav');
+$flashMessages = get_flashes();
+
+$homeTranslations = __d('home');
+$metaTranslations = $homeTranslations['meta'] ?? [];
+$navTranslations = $homeTranslations['nav'] ?? [];
+$heroTranslations = $homeTranslations['hero'] ?? [];
+$cardTranslations = $heroTranslations['card'] ?? [];
+$highlightTranslations = $heroTranslations['highlights'] ?? [];
+$featuresTranslations = $homeTranslations['features'] ?? [];
+$featuresItems = $featuresTranslations['items'] ?? [];
+$aiTranslations = $homeTranslations['ai'] ?? [];
+$aiItems = $aiTranslations['items'] ?? [];
+$testimonialsTranslations = $homeTranslations['testimonials'] ?? [];
+$testimonialItems = $testimonialsTranslations['items'] ?? [];
+$faqTranslations = $homeTranslations['faq'] ?? [];
+$faqEntries = $faqTranslations['entries'] ?? [];
+$ctaTranslations = $homeTranslations['cta'] ?? [];
+$heroPhrases = $heroTranslations['typewriter_phrases'] ?? [];
+$structuredTranslations = $metaTranslations['structured'] ?? [];
+
+$dashboardIcon = <<<HTML
+<span class="dashboard-link__icon" aria-hidden="true">
+  <svg width="24" height="24" viewBox="0 0 24 24" role="img" aria-hidden="true" focusable="false">
+    <path d="M3 3h8v8H3V3zm0 10h8v8H3v-8zm10-10h8v5h-8V3zm0 7h8v11h-8V10z" fill="currentColor"/>
+  </svg>
+</span>
+HTML;
+
+$baseUrl = 'https://' . $primaryHost;
+$canonicalUrl = $baseUrl . $languagePath;
+$alternateLanguageUrls = [];
+foreach ($availableLanguages as $code => $_) {
+  $alternateLanguageUrls[$code] = $baseUrl . '/' . $code . '/';
+}
+$defaultLanguage = normalize_language(get_setting('languages_default') ?? 'en');
+$defaultAlternateUrl = $alternateLanguageUrls[$defaultLanguage] ?? $canonicalUrl;
+
+$metaDescription = (string) ($metaTranslations['description'] ?? '');
+$metaKeywordsContent = implode(', ', $metaTranslations['keywords'] ?? []);
+$metaOgTitle = (string) ($metaTranslations['og_title'] ?? '');
+$metaOgDescription = (string) ($metaTranslations['og_description'] ?? $metaDescription);
+$metaTwitterTitle = (string) ($metaTranslations['twitter_title'] ?? $metaOgTitle);
+$metaTwitterDescription = (string) ($metaTranslations['twitter_description'] ?? $metaOgDescription);
+
+$faqEntities = array_map(static function (array $entry) {
+  return [
+    '@type' => 'Question',
+    'name' => (string) ($entry['question'] ?? ''),
+    'acceptedAnswer' => [
+      '@type' => 'Answer',
+      'text' => (string) ($entry['answer'] ?? ''),
+    ],
+  ];
+}, $faqEntries);
+
+$structuredData = [
+  '@context' => 'https://schema.org',
+  '@type' => 'MusicService',
+  'name' => $siteName,
+  'url' => $canonicalUrl,
+  'description' => $metaDescription,
+  'serviceType' => (string) ($structuredTranslations['service_type'] ?? 'Digital music distribution powered by AI'),
+  'provider' => [
+    '@type' => 'Organization',
+    'name' => $siteName,
+    'url' => $canonicalUrl,
+    'logo' => $structuredLogoUrl,
+  ],
+  'areaServed' => (string) ($structuredTranslations['area_served'] ?? 'Worldwide'),
+  'offers' => $structuredTranslations['offers'] ?? [
+    [
+      '@type' => 'Offer',
+      'name' => 'Worldwide distribution',
+      'price' => '0.00',
+      'priceCurrency' => 'EUR',
+      'availability' => 'https://schema.org/InStock',
+    ],
+    [
+      '@type' => 'Offer',
+      'name' => 'AI marketing campaigns',
+      'price' => '29.00',
+      'priceCurrency' => 'EUR',
+      'availability' => 'https://schema.org/PreOrder',
+    ],
+  ],
+  'sameAs' => [
+    'https://www.instagram.com/musicdistro.io',
+    'https://twitter.com/musicdistro_io',
+  ],
+  'hasPart' => [
+    '@type' => 'FAQPage',
+    'mainEntity' => $faqEntities,
+  ],
+];
+
+$homeClientTranslations = [
+  'nav' => [
+    'toggle_open' => (string) ($navTranslations['toggle_open'] ?? ''),
+    'toggle_close' => (string) ($navTranslations['toggle_close'] ?? ''),
+  ],
+  'hero' => [
+    'typewriter_phrases' => $heroPhrases,
+  ],
+  'testimonials' => [
+    'dot_label' => (string) ($testimonialsTranslations['dot_label'] ?? ''),
+  ],
+];
+?>
+
+<!DOCTYPE html>
+<html lang="<?= htmlspecialchars(current_language(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" dir="<?= htmlspecialchars(language_direction(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="<?= htmlspecialchars($metaDescription, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+  <?php if ($metaKeywordsContent !== ''): ?>
+    <meta name="keywords" content="<?= htmlspecialchars($metaKeywordsContent, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+  <?php endif; ?>
+  <link rel="canonical" href="<?= htmlspecialchars($canonicalUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+  <?php foreach ($alternateLanguageUrls as $code => $url): ?>
+    <link rel="alternate" hreflang="<?= htmlspecialchars($code, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" href="<?= htmlspecialchars($url, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+  <?php endforeach; ?>
+  <link rel="alternate" hreflang="x-default" href="<?= htmlspecialchars($defaultAlternateUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="<?= htmlspecialchars($canonicalUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+  <meta property="og:title" content="<?= htmlspecialchars($metaOgTitle, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+  <meta property="og:description" content="<?= htmlspecialchars($metaOgDescription, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+  <meta property="og:image" content="<?= htmlspecialchars($structuredLogoUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="<?= htmlspecialchars($metaTwitterTitle, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+  <meta name="twitter:description" content="<?= htmlspecialchars($metaTwitterDescription, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+  <link rel="icon" href="<?= htmlspecialchars($faviconUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+  <link rel="shortcut icon" href="<?= htmlspecialchars($faviconUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="<?= htmlspecialchars($faviconUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <script type="application/ld+json"><?= json_encode($structuredData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) ?></script>
+  <title><?= __e('home.title') ?></title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: radial-gradient(circle at 20% -10%, rgba(56, 189, 248, 0.25), transparent 60%),
+             radial-gradient(circle at 80% 0%, rgba(236, 72, 153, 0.18), transparent 62%),
+             radial-gradient(circle at 50% 90%, rgba(129, 140, 248, 0.16), transparent 55%),
+             #020617;
+      --surface: rgba(15, 23, 42, 0.78);
+      --card: rgba(15, 23, 42, 0.9);
+      --border: rgba(148, 163, 184, 0.2);
+      --text: #f8fafc;
+      --muted: rgba(203, 213, 225, 0.78);
+      --accent: linear-gradient(135deg, #6366f1, #ec4899, #14b8a6);
+      --shadow-lg: 0 35px 80px rgba(2, 6, 23, 0.55);
+      --shadow-md: 0 24px 50px rgba(2, 6, 23, 0.45);
+      --radius-xl: clamp(32px, 6vw, 48px);
+      --radius-lg: clamp(24px, 4vw, 32px);
+      --radius-md: 20px;
+      --max-width: min(1180px, 92vw);
+      --mobile-header-height: clamp(64px, 16vw, 92px);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Manrope', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(18px);
+      background: linear-gradient(135deg, rgba(2,6,23,0.92), rgba(15,23,42,0.78));
+      border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .nav {
+      width: 100%;
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: clamp(1.2rem, 2.5vw, 1.8rem) 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: clamp(0.75rem, 2vw, 1.5rem);
+      --nav-gap: clamp(1.1rem, 2.2vw, 1.6rem);
+      --nav-brand-gap: clamp(0.9rem, 1.8vw, 1.3rem);
+    }
+
+    .nav__brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.9rem;
+      color: inherit;
+      margin-right: var(--nav-brand-gap);
+      flex-shrink: 0;
+    }
+
+    .nav__brand img {
+      width: clamp(160px, 26vw, 220px);
+      height: auto;
+      display: block;
+    }
+
+    .nav__menu {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: var(--nav-gap);
+    }
+
+    .nav__menu-content {
+      display: flex;
+      align-items: center;
+      gap: var(--nav-gap);
+    }
+
+    .nav__menu-heading,
+    .nav__menu-divider,
+    .nav__menu-meta {
+      display: none;
+    }
+
+    .nav__links {
+      display: flex;
+      align-items: center;
+      gap: clamp(1.1rem, 2.6vw, 1.8rem);
+      font-size: 0.95rem;
+    }
+
+    .nav__links a {
+      color: rgba(226, 232, 240, 0.8);
+      font-weight: 600;
+      position: relative;
+      white-space: nowrap;
+    }
+
+    .nav__links a::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: -0.4rem;
+      width: 100%;
+      height: 2px;
+      background: rgba(236, 72, 153, 0.85);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.2s ease;
+    }
+
+    .nav__links a:hover::after {
+      transform: scaleX(1);
+    }
+
+    .nav__cta {
+      display: inline-flex;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .nav__cta-link {
+      padding: 0.85rem 1.5rem;
+      border-radius: 18px;
+      border: 1px solid transparent;
+      font-weight: 700;
+      transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+
+    .nav__cta-link:hover { transform: translateY(-2px); }
+
+    .nav__cta-register,
+    .nav__cta-dashboard {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 22px 40px rgba(99, 102, 241, 0.38);
+    }
+
+    .nav__cta-login {
+      background: transparent;
+      color: var(--accent);
+      box-shadow: none;
+      border-color: rgba(99, 102, 241, 0.45);
+    }
+
+    .nav__cta-login:hover {
+      background: rgba(99, 102, 241, 0.12);
+    }
+
+    .dashboard-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .dashboard-link__icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
+    .dashboard-link__icon svg {
+      width: 1.1em;
+      height: 1.1em;
+      flex-shrink: 0;
+    }
+
+    .nav__language {
+      display: flex;
+      align-items: center;
+    }
+
+    .language-switcher {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .language-switcher select {
+      appearance: none;
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 999px;
+      padding: 0.5rem 1.9rem 0.5rem 0.85rem;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      box-shadow: 0 18px 36px rgba(2, 6, 23, 0.28);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    .language-switcher select:hover {
+      border-color: rgba(99, 102, 241, 0.35);
+      transform: translateY(-1px);
+    }
+
+    .language-switcher select:focus {
+      outline: none;
+      border-color: rgba(99, 102, 241, 0.55);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+    }
+
+    .language-switcher--nav {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      isolation: isolate;
+    }
+
+    .language-switcher__toggle {
+      width: 48px;
+      height: 48px;
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: rgba(15, 23, 42, 0.72);
+      color: rgba(226, 232, 240, 0.9);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      padding: 0;
+      cursor: pointer;
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+      box-shadow: 0 18px 36px rgba(2, 6, 23, 0.28);
+      overflow: hidden;
+    }
+
+    .language-switcher__toggle-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      position: relative;
+      z-index: 1;
+    }
+
+    .language-switcher__toggle-indicator {
+      position: absolute;
+      inset: 4px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.45), rgba(236, 72, 153, 0.45));
+      opacity: 0;
+      transform: scale(0.9);
+      filter: blur(0.5px);
+      pointer-events: none;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .language-switcher__toggle:focus-visible {
+      outline: 2px solid rgba(129, 140, 248, 0.55);
+      outline-offset: 4px;
+    }
+
+    .language-switcher__toggle:hover {
+      border-color: rgba(99, 102, 241, 0.45);
+      color: #f8fafc;
+      transform: translateY(-1px);
+    }
+
+    .language-switcher--nav.is-open .language-switcher__toggle,
+    .language-switcher__toggle:focus-visible {
+      border-color: rgba(236, 72, 153, 0.5);
+      color: #f8fafc;
+      box-shadow: 0 22px 48px rgba(99, 102, 241, 0.35);
+    }
+
+    .language-switcher--nav.is-open .language-switcher__toggle-indicator {
+      opacity: 0.95;
+      transform: scale(1);
+    }
+
+    .language-switcher__dropdown {
+      --language-dropdown-translate-x: 0;
+      position: absolute;
+      right: 0;
+      top: calc(100% + 1rem);
+      width: clamp(240px, 32vw, 320px);
+      padding: 1.2rem;
+      border-radius: 26px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: linear-gradient(160deg, rgba(15, 23, 42, 0.94), rgba(30, 41, 59, 0.88));
+      box-shadow: 0 40px 90px rgba(2, 6, 23, 0.55);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      display: grid;
+      gap: 1rem;
+      grid-template-rows: auto minmax(0, 1fr);
+      max-height: min(70vh, 24rem);
+      z-index: 160;
+      overflow: visible;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translate3d(var(--language-dropdown-translate-x), -12px, 0);
+      transition: opacity 0.26s ease, transform 0.26s ease, visibility 0.26s ease;
+    }
+
+    .language-switcher__dropdown::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.18), transparent 55%),
+        radial-gradient(circle at 80% 10%, rgba(236, 72, 153, 0.16), transparent 65%);
+      pointer-events: none;
+      mix-blend-mode: screen;
+      opacity: 0.7;
+    }
+
+    .language-switcher--nav.is-open .language-switcher__dropdown {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translate3d(var(--language-dropdown-translate-x), 0, 0);
+    }
+
+    .language-switcher__dropdown-header {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: rgba(226, 232, 240, 0.88);
+      font-size: 0.82rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .language-switcher__close {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: rgba(15, 23, 42, 0.65);
+      color: rgba(226, 232, 240, 0.88);
+      cursor: pointer;
+      transition: transform 0.2s ease, border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+    }
+
+    .language-switcher__close svg {
+      width: 1em;
+      height: 1em;
+    }
+
+    .language-switcher__close:hover {
+      border-color: rgba(236, 72, 153, 0.45);
+      color: #f8fafc;
+      transform: translateY(-1px);
+    }
+
+    .language-switcher__close:focus-visible {
+      outline: 2px solid rgba(129, 140, 248, 0.55);
+      outline-offset: 4px;
+    }
+
+    .language-switcher__options {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 0.65rem;
+      overflow-y: auto;
+      padding-right: 0.25rem;
+      scrollbar-width: thin;
+      max-height: min(60vh, 18rem);
+    }
+
+    .language-switcher__options::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .language-switcher__options::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.35);
+      border-radius: 999px;
+    }
+
+    .language-switcher__option {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 1.1rem 1.25rem;
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      background: rgba(15, 23, 42, 0.55);
+      color: rgba(226, 232, 240, 0.9);
+      font: inherit;
+      cursor: pointer;
+      transition: transform 0.25s ease, border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+      text-align: start;
+      position: relative;
+      overflow: visible;
+      line-height: 1.2;
+      min-height: 4.75rem;
+    }
+
+    .language-switcher__option::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(140deg, rgba(99, 102, 241, 0.18), rgba(236, 72, 153, 0.18));
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      pointer-events: none;
+      border-radius: inherit;
+    }
+
+    .language-switcher__option:hover,
+    .language-switcher__option:focus-visible {
+      border-color: rgba(99, 102, 241, 0.35);
+      background: rgba(15, 23, 42, 0.68);
+      transform: translateY(-1px);
+    }
+
+    .language-switcher__option:hover::after,
+    .language-switcher__option:focus-visible::after {
+      opacity: 1;
+    }
+
+    .language-switcher__option:focus {
+      outline: none;
+    }
+
+    .language-switcher__option:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+    }
+
+    .language-switcher__option-text {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      column-gap: 0.55rem;
+      row-gap: 0.2rem;
+      align-items: center;
+    }
+
+    .language-switcher__option-primary {
+      display: contents;
+    }
+
+    .language-switcher__option-primary-label {
+      display: inline-block;
+      font-weight: 700;
+      font-size: 0.98rem;
+    }
+
+    .language-switcher__option-flag {
+      font-size: 1.35rem;
+      line-height: 1;
+      filter: drop-shadow(0 4px 8px rgba(15, 23, 42, 0.35));
+      flex-shrink: 0;
+      grid-row: 1 / span 2;
+      align-self: center;
+    }
+
+    .language-switcher__option-secondary {
+      grid-column: 2;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(165, 180, 252, 0.78);
+    }
+
+    .language-switcher__option-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.65);
+      color: rgba(148, 163, 184, 0.65);
+      transition: opacity 0.25s ease, transform 0.25s ease, background 0.25s ease, color 0.25s ease;
+      opacity: 0;
+      transform: scale(0.8);
+    }
+
+    .language-switcher__option-icon svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .language-switcher__option--active {
+      border-color: rgba(236, 72, 153, 0.5);
+      background: linear-gradient(140deg, rgba(99, 102, 241, 0.32), rgba(236, 72, 153, 0.34));
+      box-shadow: 0 22px 45px rgba(99, 102, 241, 0.35);
+      transform: translateY(-1px);
+    }
+
+    .language-switcher__option--active::after {
+      opacity: 1;
+    }
+
+    .language-switcher__option--active .language-switcher__option-icon {
+      opacity: 1;
+      transform: scale(1);
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.85), rgba(236, 72, 153, 0.85));
+      color: #f8fafc;
+      box-shadow: 0 15px 30px rgba(236, 72, 153, 0.35);
+    }
+
+    .nav__toggle {
+      display: none;
+      margin-left: auto;
+      width: 48px;
+      height: 48px;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: rgba(15, 23, 42, 0.65);
+      box-shadow: 0 15px 35px rgba(2, 6, 23, 0.35);
+      color: inherit;
+      cursor: pointer;
+      padding: 0;
+      align-items: center;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+      transition: border-color 0.2s ease, background 0.2s ease;
+      position: relative;
+      z-index: 120;
+    }
+
+    .nav__toggle span {
+      position: absolute;
+      left: 50%;
+      display: block;
+      width: 22px;
+      height: 2px;
+      border-radius: 999px;
+      background: rgba(226, 232, 240, 0.88);
+      transform: translate(-50%, 0);
+      transition: transform 0.3s ease, opacity 0.3s ease, top 0.3s ease;
+    }
+
+    .nav__toggle span:nth-child(1) { top: calc(50% - 9px); }
+    .nav__toggle span:nth-child(2) { top: calc(50% - 1px); }
+    .nav__toggle span:nth-child(3) { top: calc(50% + 7px); }
+
+    .nav__toggle:focus-visible {
+      outline: 2px solid rgba(129, 140, 248, 0.55);
+      outline-offset: 4px;
+    }
+
+    .nav__toggle:hover {
+      border-color: rgba(236, 72, 153, 0.45);
+      background: rgba(15, 23, 42, 0.8);
+    }
+
+    .nav.nav--open .nav__toggle span:nth-child(1),
+    .nav.nav--open .nav__toggle span:nth-child(3) {
+      top: calc(50% - 1px);
+    }
+
+    .nav.nav--open .nav__toggle span:nth-child(1) {
+      transform: translate(-50%, 0) rotate(45deg);
+    }
+
+    .nav.nav--open .nav__toggle span:nth-child(2) {
+      opacity: 0;
+      transform: translate(-50%, 0);
+    }
+
+    .nav.nav--open .nav__toggle span:nth-child(3) {
+      transform: translate(-50%, 0) rotate(-45deg);
+    }
+
+    body.no-scroll {
+      overflow: hidden;
+    }
+
+    html.language-switcher-lock,
+    html.language-switcher-lock body {
+      overflow: hidden;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    main { display: grid; gap: clamp(3rem, 6vw, 6rem); }
+
+    main > section {
+      width: min(100%, var(--max-width));
+      margin: 0 auto;
+    }
+
+    .hero {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: clamp(4rem, 8vw, 6rem) 0 clamp(3rem, 6vw, 5rem);
+      display: grid;
+      gap: clamp(2.5rem, 4vw, 3.4rem);
+    }
+
+    .hero__layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+      grid-template-areas: 'content visual';
+      align-items: stretch;
+      gap: clamp(2.2rem, 5vw, 3.6rem);
+    }
+
+    .hero__content {
+      display: grid;
+      gap: 1.6rem;
+      grid-area: content;
+    }
+
+    .hero__visual {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      grid-area: visual;
+    }
+
+    .hero__card {
+      width: min(100%, 540px);
+      display: grid;
+      gap: clamp(1.4rem, 3vw, 1.9rem);
+      padding: clamp(1.8rem, 3vw, 2.4rem);
+      border-radius: clamp(28px, 6vw, 36px);
+      background: var(--card);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      box-shadow: 0 40px 90px rgba(2, 6, 23, 0.55);
+    }
+
+    .hero__card-header {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .hero__card-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: fit-content;
+      padding: 0.4rem 1rem;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.12);
+      color: rgba(165, 243, 252, 0.85);
+      font-size: 0.75rem;
+      letter-spacing: 0.16em;
+      font-weight: 700;
+    }
+
+    .hero__card-title {
+      margin: 0;
+      font-size: clamp(1.4rem, 3vw, 1.75rem);
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .hero__card-subtitle {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.78);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .hero__card-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(0.85rem, 2.4vw, 1.1rem);
+      justify-items: center;
+    }
+
+    .platform-icon {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: clamp(88px, 13vw, 112px);
+      aspect-ratio: 1 / 1;
+      padding: clamp(1rem, 2.8vw, 1.35rem);
+      border-radius: clamp(18px, 3vw, 24px);
+      background: linear-gradient(150deg, rgba(15, 23, 42, 0.88) 0%, rgba(30, 41, 59, 0.65) 100%);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      box-shadow:
+        inset 0 0 0 1px rgba(15, 23, 42, 0.5),
+        0 18px 36px rgba(2, 6, 23, 0.45);
+    }
+
+    .platform-icon__badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: clamp(44px, 6.4vw, 56px);
+      height: clamp(44px, 6.4vw, 56px);
+    }
+
+    .platform-icon__badge svg,
+    .platform-icon__badge img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      color: rgba(248, 250, 252, 0.94);
+    }
+
+    .platform-icon__badge img {
+      filter: brightness(0) saturate(100%) invert(100%);
+    }
+
+    .hero__card-marquee {
+      position: relative;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      padding: 0.55rem 0;
+      mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
+    }
+
+    .hero__card-track {
+      display: inline-flex;
+      gap: 1.8rem;
+      align-items: center;
+      animation: marquee 18s linear infinite;
+      padding-inline: 1.8rem;
+      white-space: nowrap;
+      font-size: 0.78rem;
+      color: rgba(203, 213, 225, 0.78);
+      text-transform: uppercase;
+      letter-spacing: 0.24em;
+      font-weight: 600;
+    }
+
+    .hero__card-track:nth-of-type(2) {
+      animation-delay: -9s;
+    }
+
+    .hero__card-track span::after {
+      content: '•';
+      margin-left: 1.5rem;
+      color: rgba(148, 163, 184, 0.45);
+    }
+
+    .hero__card-track span:last-of-type::after {
+      content: '';
+      margin: 0;
+    }
+
+    @keyframes marquee {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    .hero__eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.55rem 1.1rem;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.12);
+      color: rgba(165, 243, 252, 0.9);
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      font-size: 0.85rem;
+    }
+
+    .hero__title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: clamp(2.8rem, 6vw, 4.2rem);
+      line-height: 1.05;
+      margin: 0;
+      min-height: clamp(3.6rem, 6.2vw, 5rem);
+      display: flex;
+      align-items: flex-start;
+      position: relative;
+    }
+
+    .hero__typewriter {
+      position: relative;
+      display: inline-block;
+      vertical-align: top;
+      padding-right: clamp(0.4rem, 0.8vw, 0.8rem);
+    }
+
+    .hero__typewriter::after {
+      content: '';
+      display: inline-block;
+      width: clamp(0.16rem, 0.3vw, 0.22rem);
+      height: 1.3em;
+      margin-left: clamp(0.2rem, 0.4vw, 0.45rem);
+      border-radius: 999px;
+      background: rgba(248, 250, 252, 0.85);
+      animation: blink 1s steps(1) infinite;
+      vertical-align: text-bottom;
+    }
+
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      50.01%, 100% { opacity: 0; }
+    }
+
+    .hero__subtitle {
+      margin: 0;
+      max-width: 620px;
+      color: var(--muted);
+      font-size: clamp(1rem, 2vw, 1.2rem);
+    }
+
+    .hero__cta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .hero__cta a.primary,
+    .cta .buttons a.primary {
+      padding: 1rem 1.8rem;
+      border-radius: 20px;
+      background: var(--accent);
+      color: white;
+      font-weight: 700;
+      box-shadow: 0 28px 48px rgba(99, 102, 241, 0.38);
+    }
+
+    .hero__cta a.secondary,
+    .cta .buttons a.secondary {
+      padding: 1rem 1.6rem;
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      color: rgba(226, 232, 240, 0.85);
+      font-weight: 600;
+      transition: background 0.2s ease;
+    }
+
+    .hero__cta a.secondary:hover,
+    .cta .buttons a.secondary:hover {
+      background: rgba(148, 163, 184, 0.12);
+    }
+
+    .highlight {
+      width: 100%;
+      display: grid;
+      gap: clamp(1.2rem, 3vw, 2rem);
+      background: var(--surface);
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--border);
+      padding: clamp(2.2rem, 4vw, 3.6rem);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .highlight__grid {
+      display: grid;
+      gap: clamp(1.5rem, 3vw, 2.5rem);
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .highlight__item {
+      display: grid;
+      gap: 0.8rem;
+      background: rgba(15, 23, 42, 0.88);
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      padding: clamp(1.6rem, 3vw, 2.1rem);
+      box-shadow: var(--shadow-md);
+    }
+
+    .highlight__item span {
+      font-size: clamp(2rem, 4vw, 2.6rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: var(--accent);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .highlight__item p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .section {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      display: grid;
+      gap: clamp(2rem, 4vw, 3rem);
+    }
+
+    .section__title {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 2.8rem);
+      font-family: 'Space Grotesk', sans-serif;
+      text-align: center;
+    }
+
+    .features {
+      display: grid;
+      gap: clamp(1.5rem, 3vw, 2.5rem);
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+
+    .feature {
+      background: rgba(15, 23, 42, 0.85);
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      padding: clamp(1.8rem, 3vw, 2.4rem);
+      box-shadow: var(--shadow-md);
+      display: grid;
+      gap: 1rem;
+    }
+
+    .feature h3 {
+      margin: 0;
+      font-size: 1.35rem;
+    }
+
+    .feature p { margin: 0; color: var(--muted); }
+
+    .feature ul { margin: 0; padding-left: 1.1rem; color: var(--muted); font-size: 0.95rem; display: grid; gap: 0.6rem; }
+
+    .testimonials {
+      position: relative;
+      display: grid;
+      gap: clamp(1.4rem, 2.8vw, 2rem);
+      padding: clamp(1rem, 2vw, 1.4rem) clamp(0.5rem, 1vw, 1rem);
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.76));
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+    }
+
+    .testimonials__viewport {
+      overflow: hidden;
+      position: relative;
+      border-radius: calc(var(--radius-lg) - 6px);
+    }
+
+    .testimonials__track {
+      --testimonial-gap: clamp(1.25rem, 2.5vw, 1.75rem);
+      display: flex;
+      gap: var(--testimonial-gap);
+      scroll-behavior: smooth;
+      scroll-snap-type: x mandatory;
+      padding: 0.5rem;
+    }
+
+    .testimonial {
+      flex: 0 0 auto;
+      scroll-snap-align: center;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: var(--radius-lg);
+      padding: clamp(1.6rem, 3vw, 2.2rem);
+      box-shadow: var(--shadow-md);
+      max-width: min(640px, 80vw);
+      display: grid;
+      gap: 1.2rem;
+    }
+
+    .testimonial p {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.88);
+      font-size: 1rem;
+    }
+
+    .testimonial span {
+      font-weight: 600;
+      color: rgba(165, 180, 252, 0.88);
+      font-size: 0.9rem;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    .testimonials__controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0 0.5rem 0.5rem;
+    }
+
+    .testimonials__buttons {
+      display: flex;
+      gap: 0.6rem;
+    }
+
+    .testimonials__control {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      background: rgba(15, 23, 42, 0.85);
+      color: rgba(226, 232, 240, 0.9);
+      cursor: pointer;
+      transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .testimonials__control:hover {
+      transform: translateY(-2px);
+      border-color: rgba(236, 72, 153, 0.6);
+      background: rgba(99, 102, 241, 0.2);
+    }
+
+    .testimonials__control:disabled {
+      opacity: 0.4;
+      cursor: default;
+      transform: none;
+    }
+
+    .testimonials__dots {
+      display: flex;
+      gap: 0.5rem;
+      pointer-events: auto;
+    }
+
+    .testimonials__dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(148, 163, 184, 0.32);
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .testimonials__dot[aria-current="true"] {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(236, 72, 153, 0.9));
+      transform: scale(1.15);
+    }
+
+    @media (min-width: 880px) {
+      .testimonial {
+        flex-basis: 70%;
+      }
+    }
+
+    @media (min-width: 1180px) {
+      .testimonial {
+        flex-basis: 60%;
+      }
+    }
+
+    .cta {
+      max-width: var(--max-width);
+      margin: 0 auto clamp(4rem, 8vw, 6rem);
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(236, 72, 153, 0.2));
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      padding: clamp(2.8rem, 5vw, 4rem);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .cta__grid {
+      display: grid;
+      grid-template-columns: minmax(240px, 340px) minmax(0, 1fr);
+      grid-template-areas: 'visual content';
+      gap: clamp(2rem, 5vw, 3rem);
+      align-items: center;
+    }
+
+    .cta__content {
+      display: grid;
+      gap: 1.4rem;
+      grid-area: content;
+    }
+
+    .cta h2 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 2.6rem);
+    }
+
+    .cta p {
+      margin: 0;
+      max-width: 540px;
+      color: rgba(226, 232, 240, 0.82);
+    }
+
+    .cta .buttons {
+      display: flex;
+      justify-content: flex-start;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .cta__visual {
+      grid-area: visual;
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      justify-self: start;
+      margin: 0;
+      padding: clamp(0.9rem, 2vw, 1.4rem);
+      border-radius: clamp(22px, 5vw, 30px);
+      position: relative;
+      box-shadow: 0 28px 60px rgba(2, 6, 23, 0.5);
+      overflow: hidden;
+    }
+
+    .cta__visual::before,
+    .cta__visual::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      z-index: 0;
+    }
+
+    .cta__visual::before {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(236, 72, 153, 0.9), rgba(20, 184, 166, 0.9));
+    }
+
+    .cta__visual::after {
+      inset: 2px;
+      background: rgba(15, 23, 42, 0.88);
+      box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.12);
+    }
+
+    .cta__visual img {
+      position: relative;
+      z-index: 1;
+      width: min(100%, 440px);
+      height: auto;
+      display: block;
+    }
+
+    .faq {
+      display: grid;
+      gap: clamp(1.2rem, 2.5vw, 1.8rem);
+    }
+
+    details {
+      background: rgba(15, 23, 42, 0.82);
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      padding: 1.4rem 1.6rem;
+      box-shadow: var(--shadow-md);
+    }
+
+    summary {
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 1.05rem;
+    }
+
+    details p {
+      margin: 1rem 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    footer {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: rgba(148, 163, 184, 0.75);
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 1100px) {
+      .nav__links {
+        gap: clamp(0.8rem, 1.8vw, 1.3rem);
+      }
+
+      .nav__cta-link {
+        padding: 0.75rem 1.35rem;
+      }
+    }
+
+    @media (max-width: 960px) {
+      .nav {
+        gap: 0.5rem;
+        min-height: var(--mobile-header-height);
+        padding-inline: clamp(0.6rem, 3vw, 1.2rem);
+      }
+
+      .nav__brand {
+        margin-right: 0;
+      }
+
+      .nav__brand img {
+        width: clamp(190px, 44vw, 240px);
+      }
+
+      .nav__toggle {
+        display: inline-flex;
+        margin-left: auto;
+      }
+
+      .nav__menu {
+        margin-left: 0;
+        position: fixed;
+        inset: 0;
+        padding: calc(env(safe-area-inset-top, 0px) + clamp(2rem, 10vh, 3.5rem))
+          clamp(1.2rem, 5vw, 2.6rem)
+          calc(env(safe-area-inset-bottom, 0px) + clamp(2rem, 8vh, 3.5rem));
+        background: radial-gradient(circle at top, rgba(236, 72, 153, 0.18), transparent 55%),
+          radial-gradient(circle at 20% 80%, rgba(56, 189, 248, 0.2), transparent 60%),
+          rgba(15, 23, 42, 0.96);
+        backdrop-filter: blur(28px);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        gap: clamp(2rem, 4vh, 3rem);
+        text-align: center;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(-12px);
+        transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
+        z-index: 100;
+        min-height: 100dvh;
+        overflow: hidden;
+        isolation: isolate;
+      }
+
+      .nav__menu > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      .nav__menu-content {
+        width: min(420px, 92vw);
+        display: grid;
+        gap: clamp(1.5rem, 3vh, 2.2rem);
+      }
+
+      .nav__menu-heading {
+        display: grid;
+        gap: 0.75rem;
+      }
+
+      .nav__menu-heading span {
+        font-size: 0.75rem;
+        letter-spacing: 0.18em;
+        font-weight: 700;
+        color: rgba(165, 243, 252, 0.7);
+      }
+
+      .nav__menu-heading h2 {
+        margin: 0;
+        font-size: 1.4rem;
+        font-weight: 700;
+      }
+
+      .nav__menu-heading p {
+        margin: 0;
+        color: rgba(203, 213, 225, 0.78);
+        font-size: 0.95rem;
+      }
+
+      .nav__links {
+        flex-direction: column;
+        gap: clamp(1rem, 2vh, 1.5rem);
+      }
+
+      .nav__cta {
+        flex-direction: column;
+        width: 100%;
+      }
+
+      .nav__cta-link {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .nav__language {
+        width: min(320px, 100%);
+        justify-content: center;
+      }
+
+      .nav__language .language-switcher--nav {
+        width: auto;
+      }
+
+      .nav__language .language-switcher__dropdown {
+        width: min(360px, 92vw);
+        right: auto;
+        left: 50%;
+        --language-dropdown-translate-x: -50%;
+      }
+
+      .nav__menu-meta {
+        display: grid;
+        gap: 0.4rem;
+        font-size: 0.85rem;
+        color: rgba(203, 213, 225, 0.7);
+      }
+
+      .nav.nav--open .nav__menu {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translateY(0);
+      }
+
+      .nav.nav--open .nav__toggle {
+        position: fixed;
+        top: calc(env(safe-area-inset-top, 0px) + clamp(1rem, 4vw, 1.8rem));
+        right: clamp(1.2rem, 5vw, 2.4rem);
+      }
+    }
+
+    @media (max-width: 720px) {
+      .hero__layout {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          'content'
+          'visual';
+      }
+
+      .hero__content {
+        gap: 1.2rem;
+      }
+
+      .hero__title {
+        font-size: clamp(2.2rem, 8vw, 3rem);
+      }
+
+      .hero__card {
+        width: 100%;
+      }
+
+      .hero__card-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: clamp(0.75rem, 4vw, 1rem);
+        justify-items: stretch;
+      }
+
+      .platform-icon {
+        width: 100%;
+        max-width: none;
+        aspect-ratio: 5 / 3;
+        padding: clamp(0.9rem, 2.8vw, 1.1rem) clamp(1.1rem, 5vw, 1.6rem);
+      }
+
+      .platform-icon__badge {
+        width: clamp(44px, 10vw, 56px);
+        height: clamp(44px, 10vw, 56px);
+      }
+
+      .hero__card-track {
+        animation-duration: 22s;
+      }
+
+      .hero__cta {
+        justify-content: center;
+        flex-direction: column;
+        align-items: stretch;
+        width: min(320px, 100%);
+        margin-inline: auto;
+      }
+
+      .hero__cta a {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        text-align: center;
+      }
+
+      .cta__content {
+        text-align: center;
+        align-items: center;
+      }
+
+      .cta .buttons {
+        justify-content: center;
+        flex-direction: column;
+        align-items: stretch;
+        width: min(320px, 100%);
+        margin-inline: auto;
+      }
+
+      .cta .buttons a {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        text-align: center;
+      }
+
+      .cta__grid {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          'content'
+          'visual';
+        justify-items: center;
+      }
+
+      .cta__visual {
+        justify-content: center;
+        justify-self: center;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .language-switcher--nav.is-open {
+        position: fixed;
+        inset: 0;
+        z-index: 320;
+        padding: calc(env(safe-area-inset-top, 0px) + clamp(1.5rem, 7vw, 2.6rem))
+          clamp(1.2rem, 7vw, 2.4rem)
+          calc(env(safe-area-inset-bottom, 0px) + clamp(2rem, 10vw, 3.4rem));
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.92));
+        display: flex;
+        flex-direction: column;
+        gap: clamp(1.2rem, 6vw, 2rem);
+        align-items: stretch;
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+      }
+
+      .language-switcher--nav.is-open::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 15% 12%, rgba(56, 189, 248, 0.18), transparent 55%),
+          radial-gradient(circle at 85% 8%, rgba(236, 72, 153, 0.18), transparent 60%);
+        pointer-events: none;
+        opacity: 0.85;
+      }
+
+      .language-switcher--nav.is-open > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      .language-switcher--nav.is-open .language-switcher__toggle {
+        display: none;
+      }
+
+      .language-switcher--nav.is-open .language-switcher__dropdown {
+        position: static;
+        width: min(480px, 100%);
+        margin: 0 auto;
+        max-height: none;
+        height: auto;
+        display: flex;
+        flex-direction: column;
+        gap: clamp(1rem, 4vw, 1.4rem);
+        padding: clamp(1.3rem, 5vw, 1.8rem);
+        border-radius: clamp(1.3rem, 5vw, 2rem);
+        box-shadow: 0 24px 60px rgba(2, 6, 23, 0.55);
+        transform: none;
+      }
+
+      .language-switcher--nav.is-open .language-switcher__options {
+        max-height: none;
+        overflow-y: auto;
+        padding-right: 0;
+        flex: 1;
+      }
+
+      .language-switcher--nav.is-open .language-switcher__dropdown-header {
+        font-size: 0.78rem;
+        letter-spacing: 0.12em;
+      }
+
+      .language-switcher--nav.is-open .language-switcher__option {
+        padding: 0.85rem;
+      }
+
+      .language-switcher--nav.is-open .language-switcher__option-text {
+        grid-template-columns: auto 1fr;
+        row-gap: 0.2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="nav">
+      <a class="nav__brand" href="#mission" aria-label="<?= __e('home.nav.brand_aria') ?>">
+        <img src="<?= htmlspecialchars($siteLogoUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" alt="<?= htmlspecialchars($siteName, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+      </a>
+      <button class="nav__toggle" type="button" aria-expanded="false" aria-controls="primary-navigation" aria-label="<?= __e('home.nav.toggle_open') ?>">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <div class="nav__menu" id="primary-navigation" aria-hidden="true">
+        <div class="nav__menu-content">
+          <div class="nav__menu-heading">
+            <span><?= __e('home.nav.menu_heading.badge') ?></span>
+            <h2><?= __e('home.nav.menu_heading.title') ?></h2>
+            <p><?= __e('home.nav.menu_heading.description') ?></p>
+          </div>
+          <nav class="nav__links">
+            <?php foreach ($navTranslations['links'] ?? [] as $id => $label): ?>
+              <a href="#<?= htmlspecialchars($id, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>"><?= htmlspecialchars((string) $label, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></a>
+            <?php endforeach; ?>
+          </nav>
+          <div class="nav__menu-divider" aria-hidden="true"></div>
+          <div class="nav__cta">
+            <?php if ($currentUser): ?>
+              <a class="dashboard-link nav__cta-link nav__cta-register nav__cta-dashboard" href="/dashboard.php">
+                <?= $dashboardIcon ?>
+                <span><?= htmlspecialchars((string) ($navTranslations['cta']['dashboard'] ?? 'Dashboard'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></span>
+              </a>
+            <?php else: ?>
+              <a class="nav__cta-link nav__cta-login" href="/login.php"><?= htmlspecialchars((string) ($navTranslations['cta']['login'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></a>
+              <a class="nav__cta-link nav__cta-register" href="/register.php"><?= htmlspecialchars((string) ($navTranslations['cta']['register'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></a>
+            <?php endif; ?>
+          </div>
+        </div>
+        <?php if ($languageSwitcherHtml !== ''): ?>
+          <div class="nav__language">
+            <?= $languageSwitcherHtml ?>
+          </div>
+        <?php endif; ?>
+        <div class="nav__menu-meta">
+          <?php foreach ($navTranslations['meta'] ?? [] as $metaLabel): ?>
+            <span><?= htmlspecialchars((string) $metaLabel, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></span>
+          <?php endforeach; ?>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" id="mission">
+      <div class="hero__layout">
+        <div class="hero__content">
+          <span class="hero__eyebrow"><?= __e('home.hero.eyebrow') ?></span>
+          <h1 class="hero__title">
+            <span class="hero__typewriter" data-typewriter-target aria-live="polite">
+              <?= htmlspecialchars((string) ($heroPhrases[0] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
+            </span>
+          </h1>
+          <p class="hero__subtitle"><?= __e('home.hero.subtitle') ?></p>
+          <div class="hero__cta">
+            <?php if ($currentUser): ?>
+              <a class="primary dashboard-link" href="/dashboard.php">
+                <?= $dashboardIcon ?>
+                <span><?= htmlspecialchars((string) ($navTranslations['cta']['dashboard'] ?? 'Dashboard'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></span>
+              </a>
+            <?php else: ?>
+              <a class="secondary" href="/login.php"><?= __e('home.hero.cta.secondary') ?></a>
+              <a class="primary" href="/register.php"><?= __e('home.hero.cta.primary') ?></a>
+            <?php endif; ?>
+          </div>
+        </div>
+        <div class="hero__visual">
+          <article class="hero__card" aria-label="<?= __e('home.hero.card.aria_label') ?>">
+            <div class="hero__card-header">
+              <span class="hero__card-badge"><?= __e('home.hero.card.badge') ?></span>
+              <h2 class="hero__card-title"><?= __e('home.hero.card.title') ?></h2>
+              <p class="hero__card-subtitle"><?= __e('home.hero.card.subtitle') ?></p>
+            </div>
+            <div class="hero__card-grid" role="list">
+              <?php foreach ($cardTranslations['platforms'] ?? [] as $platform): ?>
+                <div class="platform-icon" role="listitem" aria-label="<?= htmlspecialchars((string) $platform, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+                  <div class="platform-icon__badge">
+                    <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/<?= rawurlencode(strtolower(str_replace(' ', '', (string) $platform))) ?>.svg" alt="" loading="lazy" decoding="async">
+                  </div>
+                  <span class="sr-only"><?= htmlspecialchars((string) $platform, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></span>
+                </div>
+              <?php endforeach; ?>
+            </div>
+            <div class="hero__card-marquee" aria-hidden="true">
+              <?php for ($i = 0; $i < 2; $i++): ?>
+                <div class="hero__card-track" aria-hidden="<?= $i === 0 ? 'false' : 'true' ?>">
+                  <?php foreach ($cardTranslations['marquee'] ?? [] as $item): ?>
+                    <span><?= htmlspecialchars((string) $item, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></span>
+                  <?php endforeach; ?>
+                </div>
+              <?php endfor; ?>
+            </div>
+          </article>
+        </div>
+      </div>
+      <?php if (!empty($highlightTranslations)): ?>
+        <div class="highlight">
+          <div class="highlight__grid">
+            <?php foreach ($highlightTranslations as $highlight): ?>
+              <div class="highlight__item">
+                <span><?= htmlspecialchars((string) ($highlight['value'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></span>
+                <p><?= htmlspecialchars((string) ($highlight['description'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p>
+              </div>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      <?php endif; ?>
+    </section>
+
+    <?php if (!empty($featuresItems)): ?>
+      <section class="section" id="features">
+        <h2 class="section__title"><?= __e('home.features.title') ?></h2>
+        <div class="features">
+          <?php foreach ($featuresItems as $item): ?>
+            <article class="feature">
+              <h3><?= htmlspecialchars((string) ($item['title'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></h3>
+              <p><?= htmlspecialchars((string) ($item['description'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p>
+              <?php if (!empty($item['bullets']) && is_array($item['bullets'])): ?>
+                <ul>
+                  <?php foreach ($item['bullets'] as $bullet): ?>
+                    <li><?= htmlspecialchars((string) $bullet, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></li>
+                  <?php endforeach; ?>
+                </ul>
+              <?php endif; ?>
+            </article>
+          <?php endforeach; ?>
+        </div>
+      </section>
+    <?php endif; ?>
+
+    <?php if (!empty($aiItems)): ?>
+      <section class="section" id="ai">
+        <h2 class="section__title"><?= __e('home.ai.title') ?></h2>
+        <div class="features">
+          <?php foreach ($aiItems as $item): ?>
+            <article class="feature">
+              <h3><?= htmlspecialchars((string) ($item['title'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></h3>
+              <p><?= htmlspecialchars((string) ($item['description'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p>
+            </article>
+          <?php endforeach; ?>
+        </div>
+      </section>
+    <?php endif; ?>
+
+    <?php if (!empty($testimonialItems)): ?>
+      <section class="section">
+        <h2 class="section__title"><?= __e('home.testimonials.title') ?></h2>
+        <div class="testimonials" data-carousel>
+          <div class="testimonials__viewport" data-carousel-viewport>
+            <div class="testimonials__track" data-carousel-track>
+              <?php foreach ($testimonialItems as $testimonial): ?>
+                <article class="testimonial">
+                  <p><?= htmlspecialchars((string) ($testimonial['quote'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p>
+                  <span><?= htmlspecialchars((string) ($testimonial['author'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></span>
+                </article>
+              <?php endforeach; ?>
+            </div>
+          </div>
+          <div class="testimonials__controls">
+            <div class="testimonials__buttons">
+              <button class="testimonials__control" type="button" data-carousel-prev aria-label="<?= __e('home.testimonials.prev') ?>">
+                <span aria-hidden="true">&#8592;</span>
+              </button>
+              <button class="testimonials__control" type="button" data-carousel-next aria-label="<?= __e('home.testimonials.next') ?>">
+                <span aria-hidden="true">&#8594;</span>
+              </button>
+            </div>
+            <div class="testimonials__dots" data-carousel-dots aria-label="<?= __e('home.testimonials.dots_aria') ?>"></div>
+          </div>
+        </div>
+      </section>
+    <?php endif; ?>
+
+    <?php if (!empty($faqEntries)): ?>
+      <section class="section" id="faq">
+        <h2 class="section__title"><?= __e('home.faq.title') ?></h2>
+        <div class="faq">
+          <?php foreach ($faqEntries as $entry): ?>
+            <details>
+              <summary><?= htmlspecialchars((string) ($entry['question'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></summary>
+              <p><?= htmlspecialchars((string) ($entry['answer'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p>
+            </details>
+          <?php endforeach; ?>
+        </div>
+      </section>
+    <?php endif; ?>
+
+    <section class="cta">
+      <div class="cta__grid">
+        <div class="cta__content">
+          <h2><?= __e('home.cta.title') ?></h2>
+          <p><?= __e('home.cta.body') ?></p>
+          <div class="buttons">
+            <?php if ($currentUser): ?>
+              <a class="primary dashboard-link" href="/dashboard.php">
+                <?= $dashboardIcon ?>
+                <span><?= htmlspecialchars((string) ($navTranslations['cta']['dashboard'] ?? 'Dashboard'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></span>
+              </a>
+            <?php else: ?>
+              <a class="primary" href="/register.php"><?= __e('home.cta.primary') ?></a>
+              <a class="secondary" href="/login.php"><?= __e('home.cta.secondary') ?></a>
+            <?php endif; ?>
+          </div>
+        </div>
+        <figure class="cta__visual">
+          <img src="/assets/chart-climb-visual.svg" alt="<?= __e('home.cta.image_alt') ?>" loading="lazy">
+        </figure>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <?= __e('home.footer', ['year' => date('Y'), 'site' => $siteName]) ?>
+  </footer>
+
+  <script>
+    const HOME_I18N_RAW = <?= json_encode($homeClientTranslations, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    const HOME_I18N = (HOME_I18N_RAW && typeof HOME_I18N_RAW === 'object') ? HOME_I18N_RAW : {};
+    const getNestedValue = (source, path, fallback) => {
+      if (!source || typeof source !== 'object') {
+        return fallback;
+      }
+
+      const segments = Array.isArray(path) ? path : String(path).split('.');
+      let value = source;
+
+      for (let index = 0; index < segments.length; index += 1) {
+        const segment = segments[index];
+        if (!value || typeof value !== 'object' || !(segment in value)) {
+          return fallback;
+        }
+
+        value = value[segment];
+      }
+
+      return value === undefined ? fallback : value;
+    };
+    (function () {
+      const nav = document.querySelector('.nav');
+      const toggle = document.querySelector('.nav__toggle');
+      const menu = document.getElementById('primary-navigation');
+      if (!nav || !toggle || !menu) {
+        return;
+      }
+
+      function initNavLanguageSwitcher() {
+        const switcher = nav.querySelector('[data-language-switcher="nav"]');
+        if (!(switcher instanceof HTMLElement)) {
+          return { close: () => {} };
+        }
+
+        const toggleButton = switcher.querySelector('.language-switcher__toggle');
+        const dropdown = switcher.querySelector('.language-switcher__dropdown');
+        if (!(toggleButton instanceof HTMLButtonElement) || !(dropdown instanceof HTMLElement)) {
+          return { close: () => {} };
+        }
+
+        const closeButton = dropdown.querySelector('.language-switcher__close');
+        const optionButtons = Array.from(dropdown.querySelectorAll('.language-switcher__option')).filter((element) => element instanceof HTMLButtonElement);
+        if (optionButtons.length === 0) {
+          return { close: () => {} };
+        }
+
+        let isOpen = false;
+        const fullscreenQuery = window.matchMedia('(max-width: 640px)');
+
+        const updateScrollLock = () => {
+          if (isOpen && fullscreenQuery.matches) {
+            document.documentElement.classList.add('language-switcher-lock');
+          } else {
+            document.documentElement.classList.remove('language-switcher-lock');
+          }
+        };
+
+        const handleFullscreenChange = () => {
+          updateScrollLock();
+        };
+
+        if (typeof fullscreenQuery.addEventListener === 'function') {
+          fullscreenQuery.addEventListener('change', handleFullscreenChange);
+        } else if (typeof fullscreenQuery.addListener === 'function') {
+          fullscreenQuery.addListener(handleFullscreenChange);
+        }
+
+        const setOpenState = (open, focusButton) => {
+          if (isOpen === open) {
+            if (open && focusButton instanceof HTMLButtonElement) {
+              window.requestAnimationFrame(() => {
+                focusButton.focus({ preventScroll: true });
+              });
+            }
+            return;
+          }
+
+          isOpen = open;
+          switcher.classList.toggle('is-open', open);
+          toggleButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+          dropdown.setAttribute('aria-hidden', open ? 'false' : 'true');
+          updateScrollLock();
+
+          if (open && focusButton instanceof HTMLButtonElement) {
+            window.requestAnimationFrame(() => {
+              focusButton.focus({ preventScroll: true });
+            });
+          }
+        };
+
+        const getSelectedOption = () => optionButtons.find((button) => button.getAttribute('aria-selected') === 'true');
+
+        const focusOptionAt = (index) => {
+          if (optionButtons.length === 0) {
+            return;
+          }
+          const normalizedIndex = ((index % optionButtons.length) + optionButtons.length) % optionButtons.length;
+          const target = optionButtons[normalizedIndex];
+          window.requestAnimationFrame(() => {
+            target.focus({ preventScroll: true });
+          });
+        };
+
+        const focusRelative = (delta) => {
+          if (optionButtons.length === 0) {
+            return;
+          }
+          const activeElement = document.activeElement;
+          const currentIndex = activeElement instanceof HTMLButtonElement
+            ? optionButtons.indexOf(activeElement)
+            : -1;
+          if (currentIndex === -1) {
+            focusOptionAt(delta > 0 ? 0 : optionButtons.length - 1);
+            return;
+          }
+          focusOptionAt(currentIndex + delta);
+        };
+
+        const openLanguageMenu = ({ focusLast = false } = {}) => {
+          const selected = getSelectedOption();
+          const target = focusLast
+            ? optionButtons[optionButtons.length - 1]
+            : (selected || optionButtons[0]);
+          setOpenState(true, target);
+        };
+
+        const closeLanguageMenu = (restoreFocus = true) => {
+          if (!isOpen) {
+            return;
+          }
+          setOpenState(false);
+          if (restoreFocus) {
+            window.requestAnimationFrame(() => {
+              toggleButton.focus({ preventScroll: true });
+            });
+          }
+        };
+
+        const handleDocumentClick = (event) => {
+          if (!isOpen) {
+            return;
+          }
+          if (!(event.target instanceof Element)) {
+            return;
+          }
+          if (!switcher.contains(event.target)) {
+            closeLanguageMenu();
+          }
+        };
+
+        const handleDocumentKeydown = (event) => {
+          if (event.key === 'Escape' && isOpen) {
+            event.preventDefault();
+            event.stopPropagation();
+            closeLanguageMenu();
+          }
+        };
+
+        document.addEventListener('click', handleDocumentClick);
+        document.addEventListener('keydown', handleDocumentKeydown);
+
+        if (closeButton instanceof HTMLButtonElement) {
+          closeButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            closeLanguageMenu();
+          });
+        }
+
+        toggleButton.addEventListener('click', (event) => {
+          event.preventDefault();
+          if (isOpen) {
+            closeLanguageMenu(false);
+          } else {
+            openLanguageMenu();
+          }
+        });
+
+        toggleButton.addEventListener('keydown', (event) => {
+          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            openLanguageMenu({ focusLast: event.key === 'ArrowUp' });
+          } else if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+            event.preventDefault();
+            if (isOpen) {
+              closeLanguageMenu();
+            } else {
+              openLanguageMenu();
+            }
+          } else if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            closeLanguageMenu();
+          }
+        });
+
+        optionButtons.forEach((button) => {
+          button.addEventListener('click', () => {
+            setOpenState(false);
+          });
+
+          button.addEventListener('keydown', (event) => {
+            if (event.key === 'ArrowDown') {
+              event.preventDefault();
+              focusRelative(1);
+            } else if (event.key === 'ArrowUp') {
+              event.preventDefault();
+              focusRelative(-1);
+            } else if (event.key === 'Home') {
+              event.preventDefault();
+              focusOptionAt(0);
+            } else if (event.key === 'End') {
+              event.preventDefault();
+              focusOptionAt(optionButtons.length - 1);
+            } else if (event.key === 'Escape') {
+              event.preventDefault();
+              event.stopPropagation();
+              closeLanguageMenu();
+            }
+          });
+        });
+
+        return {
+          close: (restoreFocus = false) => {
+            closeLanguageMenu(restoreFocus);
+          },
+        };
+      }
+
+      const focusableSelector = 'a[href], button:not([disabled])';
+      const toggleLabels = {
+        open: String(getNestedValue(HOME_I18N, ['nav', 'toggle_open'], toggle.getAttribute('aria-label') || '')).trim(),
+        close: String(getNestedValue(HOME_I18N, ['nav', 'toggle_close'], '')).trim(),
+      };
+      const navLanguage = initNavLanguageSwitcher();
+
+      const setMenuHiddenState = (hidden) => {
+        menu.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+        const label = hidden ? toggleLabels.open : (toggleLabels.close || toggleLabels.open);
+        if (label) {
+          toggle.setAttribute('aria-label', label);
+        }
+      };
+
+      setMenuHiddenState(true);
+
+      const trapFocus = (event) => {
+        if (event.key !== 'Tab' || !nav.classList.contains('nav--open')) {
+          return;
+        }
+
+        const focusableItems = Array.from(menu.querySelectorAll(focusableSelector)).filter((element) => {
+          if (!(element instanceof HTMLElement)) {
+            return false;
+          }
+
+          const rects = element.getClientRects();
+          return rects.length > 0 && (element.offsetWidth > 0 || element.offsetHeight > 0);
+        });
+        if (focusableItems.length === 0) {
+          return;
+        }
+
+        const firstElement = focusableItems[0];
+        const lastElement = focusableItems[focusableItems.length - 1];
+
+        if (!event.shiftKey && document.activeElement === lastElement) {
+          event.preventDefault();
+          firstElement.focus({ preventScroll: true });
+        } else if (event.shiftKey && document.activeElement === firstElement) {
+          event.preventDefault();
+          lastElement.focus({ preventScroll: true });
+        }
+      };
+
+      const focusFirstMenuItem = () => {
+        const firstItem = menu.querySelector(focusableSelector);
+        if (firstItem instanceof HTMLElement) {
+          window.requestAnimationFrame(() => {
+            firstItem.focus({ preventScroll: true });
+          });
+        }
+      };
+
+      const closeMenu = ({ shouldRestoreFocus = true } = {}) => {
+        navLanguage.close(false);
+        nav.classList.remove('nav--open');
+        toggle.setAttribute('aria-expanded', 'false');
+        setMenuHiddenState(true);
+        document.body.classList.remove('no-scroll');
+        if (shouldRestoreFocus) {
+          toggle.focus({ preventScroll: true });
+        }
+      };
+
+      const openMenu = () => {
+        nav.classList.add('nav--open');
+        toggle.setAttribute('aria-expanded', 'true');
+        setMenuHiddenState(false);
+        document.body.classList.add('no-scroll');
+        focusFirstMenuItem();
+      };
+
+      toggle.addEventListener('click', () => {
+        if (nav.classList.contains('nav--open')) {
+          closeMenu();
+        } else {
+          openMenu();
+        }
+      });
+
+      menu.addEventListener('click', (event) => {
+        if (!(event.target instanceof Element)) {
+          return;
+        }
+
+        const anchor = event.target.closest('a');
+        if (anchor) {
+          closeMenu({ shouldRestoreFocus: false });
+        }
+      });
+
+      window.addEventListener('resize', () => {
+        if (window.innerWidth > 960 && nav.classList.contains('nav--open')) {
+          closeMenu();
+        }
+      });
+
+      document.addEventListener('click', (event) => {
+        if (!nav.classList.contains('nav--open')) {
+          return;
+        }
+
+        if (!(event.target instanceof Element)) {
+          return;
+        }
+
+        if (!menu.contains(event.target) && !toggle.contains(event.target)) {
+          closeMenu();
+        }
+      });
+
+      document.addEventListener('keydown', trapFocus, true);
+
+      window.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && nav.classList.contains('nav--open')) {
+          closeMenu();
+        }
+      });
+
+      const typewriterTarget = document.querySelector('[data-typewriter-target]');
+      if (typewriterTarget instanceof HTMLElement) {
+        const heroPhrasesRaw = getNestedValue(HOME_I18N, ['hero', 'typewriter_phrases'], []);
+        const phrases = Array.isArray(heroPhrasesRaw)
+          ? heroPhrasesRaw.filter((value) => typeof value === 'string' && value.trim() !== '')
+          : [];
+        const initialContent = typewriterTarget.textContent?.trim();
+        if (phrases.length === 0 && initialContent) {
+          phrases.push(initialContent);
+        }
+        const heroTitle = typewriterTarget.closest('.hero__title');
+        const updateHeroTitleHeight = () => {
+          if (!(heroTitle instanceof HTMLElement)) {
+            return;
+          }
+
+          if (window.matchMedia('(max-width: 720px)').matches) {
+            heroTitle.style.removeProperty('min-height');
+            return;
+          }
+
+          heroTitle.style.removeProperty('min-height');
+
+          const measurement = typewriterTarget.cloneNode(true);
+          if (!(measurement instanceof HTMLElement)) {
+            return;
+          }
+
+          measurement.removeAttribute('data-typewriter-target');
+          measurement.setAttribute('aria-hidden', 'true');
+          measurement.style.position = 'absolute';
+          measurement.style.visibility = 'hidden';
+          measurement.style.pointerEvents = 'none';
+          measurement.style.whiteSpace = 'normal';
+          measurement.style.height = 'auto';
+          measurement.style.minHeight = '0';
+
+          const heroTitleWidth = heroTitle.clientWidth || heroTitle.offsetWidth;
+          if (heroTitleWidth > 0) {
+            measurement.style.width = `${heroTitleWidth}px`;
+          }
+
+          measurement.style.display = 'block';
+          heroTitle.appendChild(measurement);
+
+          let maxHeight = heroTitle.offsetHeight;
+          phrases.forEach((phrase) => {
+            measurement.textContent = phrase;
+            maxHeight = Math.max(maxHeight, measurement.offsetHeight);
+          });
+
+          measurement.remove();
+
+          if (maxHeight > 0) {
+            heroTitle.style.minHeight = `${maxHeight}px`;
+          }
+        };
+
+        updateHeroTitleHeight();
+        window.addEventListener('resize', updateHeroTitleHeight);
+        let phraseIndex = 0;
+        let charIndex = typewriterTarget.textContent?.length ?? 0;
+        let isDeleting = true;
+        const typeSpeed = 70;
+        const eraseSpeed = 42;
+        const pauseBetween = 1600;
+
+        const type = () => {
+          const currentPhrase = phrases[phraseIndex];
+          if (!currentPhrase) {
+            return;
+          }
+
+          if (isDeleting) {
+            charIndex = Math.max(0, charIndex - 1);
+            typewriterTarget.textContent = currentPhrase.slice(0, charIndex);
+            if (charIndex === 0) {
+              isDeleting = false;
+              phraseIndex = (phraseIndex + 1) % phrases.length;
+            }
+          } else {
+            charIndex = Math.min(currentPhrase.length, charIndex + 1);
+            typewriterTarget.textContent = currentPhrase.slice(0, charIndex);
+            if (charIndex === currentPhrase.length) {
+              isDeleting = true;
+              window.setTimeout(type, pauseBetween);
+              return;
+            }
+          }
+
+          const delay = isDeleting ? eraseSpeed : typeSpeed;
+          window.setTimeout(type, delay);
+        };
+
+        if (phrases.length > 0) {
+          window.setTimeout(type, 800);
+        }
+      }
+
+      const testimonialsContainer = document.querySelector('[data-carousel]');
+      if (testimonialsContainer) {
+        const viewport = testimonialsContainer.querySelector('[data-carousel-viewport]');
+        const track = testimonialsContainer.querySelector('[data-carousel-track]');
+        const dotsContainer = testimonialsContainer.querySelector('[data-carousel-dots]');
+        const prevButton = testimonialsContainer.querySelector('[data-carousel-prev]');
+        const nextButton = testimonialsContainer.querySelector('[data-carousel-next]');
+
+        if (!(viewport instanceof HTMLElement) || !(track instanceof HTMLElement) || !(dotsContainer instanceof HTMLElement)) {
+          return;
+        }
+
+        const slides = Array.from(track.children).filter((child) => child instanceof HTMLElement);
+        if (slides.length === 0) {
+          return;
+        }
+
+        let dots = [];
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const autoplayDelay = 3600;
+        let autoplayId = 0;
+        let restartTimeoutId = 0;
+
+        const getTargetScroll = (index) => {
+          const slide = slides[index];
+          if (!slide) {
+            return viewport.scrollLeft;
+          }
+          const viewportWidth = viewport.clientWidth;
+          const slideLeft = slide.offsetLeft;
+          const slideWidth = slide.clientWidth;
+          const centered = slideLeft - (viewportWidth - slideWidth) / 2;
+          const maxScroll = Math.max(0, viewport.scrollWidth - viewportWidth);
+          return Math.min(Math.max(centered, 0), maxScroll);
+        };
+
+        const scrollToIndex = (index) => {
+          const clampedIndex = Math.max(0, Math.min(slides.length - 1, index));
+          const target = getTargetScroll(clampedIndex);
+          viewport.scrollTo({ left: target, behavior: 'smooth' });
+        };
+
+        const getActiveIndex = () => {
+          const viewportCenter = viewport.scrollLeft + viewport.clientWidth / 2;
+          let closestIndex = 0;
+          let smallestDistance = Number.POSITIVE_INFINITY;
+          slides.forEach((slide, index) => {
+            const slideCenter = slide.offsetLeft + slide.clientWidth / 2;
+            const distance = Math.abs(slideCenter - viewportCenter);
+            if (distance < smallestDistance) {
+              smallestDistance = distance;
+              closestIndex = index;
+            }
+          });
+          return closestIndex;
+        };
+
+        const updateDots = (activeIndex) => {
+          dots.forEach((dot, index) => {
+            dot.setAttribute('aria-current', index === activeIndex ? 'true' : 'false');
+          });
+        };
+
+        const updateButtons = (activeIndex) => {
+          if (prevButton instanceof HTMLButtonElement) {
+            prevButton.disabled = activeIndex === 0;
+          }
+          if (nextButton instanceof HTMLButtonElement) {
+            nextButton.disabled = activeIndex === slides.length - 1;
+          }
+        };
+
+        const stopAutoplay = () => {
+          if (autoplayId) {
+            window.clearInterval(autoplayId);
+            autoplayId = 0;
+          }
+        };
+
+        const startAutoplay = () => {
+          if (prefersReducedMotion || slides.length <= 1) {
+            return;
+          }
+          stopAutoplay();
+          autoplayId = window.setInterval(() => {
+            const current = getActiveIndex();
+            const next = (current + 1) % slides.length;
+            scrollToIndex(next);
+          }, autoplayDelay);
+        };
+
+        const scheduleAutoplayRestart = () => {
+          if (prefersReducedMotion) {
+            return;
+          }
+          window.clearTimeout(restartTimeoutId);
+          restartTimeoutId = window.setTimeout(() => {
+            startAutoplay();
+          }, autoplayDelay);
+        };
+
+        const pauseAutoplay = () => {
+          stopAutoplay();
+          window.clearTimeout(restartTimeoutId);
+        };
+
+        const dotTemplate = String(getNestedValue(HOME_I18N, ['testimonials', 'dot_label'], ''));
+        dots = slides.map((_, index) => {
+          const dot = document.createElement('button');
+          dot.type = 'button';
+          dot.className = 'testimonials__dot';
+          const label = dotTemplate.includes(':number')
+            ? dotTemplate.replace(':number', String(index + 1))
+            : dotTemplate || `Slide ${index + 1}`;
+          dot.setAttribute('aria-label', label);
+          dot.addEventListener('click', () => {
+            scrollToIndex(index);
+            pauseAutoplay();
+            scheduleAutoplayRestart();
+          });
+          dotsContainer.appendChild(dot);
+          return dot;
+        });
+
+        if (prevButton instanceof HTMLButtonElement) {
+          prevButton.addEventListener('click', () => {
+            const currentIndex = getActiveIndex();
+            scrollToIndex(currentIndex - 1);
+            pauseAutoplay();
+            scheduleAutoplayRestart();
+          });
+        }
+
+        if (nextButton instanceof HTMLButtonElement) {
+          nextButton.addEventListener('click', () => {
+            const currentIndex = getActiveIndex();
+            scrollToIndex(currentIndex + 1);
+            pauseAutoplay();
+            scheduleAutoplayRestart();
+          });
+        }
+
+        let scrollAnimationFrame = 0;
+        const onScroll = () => {
+          if (scrollAnimationFrame) {
+            window.cancelAnimationFrame(scrollAnimationFrame);
+          }
+          scrollAnimationFrame = window.requestAnimationFrame(() => {
+            const activeIndex = getActiveIndex();
+            updateDots(activeIndex);
+            updateButtons(activeIndex);
+          });
+        };
+
+        viewport.addEventListener('scroll', onScroll, { passive: true });
+        updateDots(0);
+        updateButtons(0);
+        startAutoplay();
+      }
+    })();
+  </script>
+  <?= render_flash_notifications($flashMessages) ?>
+</body>
+</html>
