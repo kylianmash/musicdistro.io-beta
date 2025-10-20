@@ -1,0 +1,702 @@
+[
+  {
+    "id": "loop-001",
+    "name": "Studio Kick 01",
+    "bpm": 90,
+    "key": "C major",
+    "tags": [
+      "kick",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://kick/01",
+    "previewUrl": "virtual://preview/kick/01",
+    "waveformData": []
+  },
+  {
+    "id": "loop-002",
+    "name": "Studio Snare 02",
+    "bpm": 100,
+    "key": "D minor",
+    "tags": [
+      "snare",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://snare/02",
+    "previewUrl": "virtual://preview/snare/02",
+    "waveformData": []
+  },
+  {
+    "id": "loop-003",
+    "name": "Studio Hat 03",
+    "bpm": 110,
+    "key": "E major",
+    "tags": [
+      "hat",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://hat/03",
+    "previewUrl": "virtual://preview/hat/03",
+    "waveformData": []
+  },
+  {
+    "id": "loop-004",
+    "name": "Studio Perc 04",
+    "bpm": 120,
+    "key": "F minor",
+    "tags": [
+      "perc",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://perc/04",
+    "previewUrl": "virtual://preview/perc/04",
+    "waveformData": []
+  },
+  {
+    "id": "loop-005",
+    "name": "Studio Bass 05",
+    "bpm": 130,
+    "key": "G major",
+    "tags": [
+      "bass",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://bass/05",
+    "previewUrl": "virtual://preview/bass/05",
+    "waveformData": []
+  },
+  {
+    "id": "loop-006",
+    "name": "Studio Pad 06",
+    "bpm": 140,
+    "key": "A minor",
+    "tags": [
+      "pad",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://pad/06",
+    "previewUrl": "virtual://preview/pad/06",
+    "waveformData": []
+  },
+  {
+    "id": "loop-007",
+    "name": "Studio Lead 07",
+    "bpm": 90,
+    "key": "B major",
+    "tags": [
+      "lead",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://lead/07",
+    "previewUrl": "virtual://preview/lead/07",
+    "waveformData": []
+  },
+  {
+    "id": "loop-008",
+    "name": "Studio Keys 08",
+    "bpm": 100,
+    "key": "C minor",
+    "tags": [
+      "keys",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://keys/08",
+    "previewUrl": "virtual://preview/keys/08",
+    "waveformData": []
+  },
+  {
+    "id": "loop-009",
+    "name": "Studio Fx 09",
+    "bpm": 110,
+    "key": "D major",
+    "tags": [
+      "fx",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://fx/09",
+    "previewUrl": "virtual://preview/fx/09",
+    "waveformData": []
+  },
+  {
+    "id": "loop-010",
+    "name": "Studio Vox 10",
+    "bpm": 120,
+    "key": "E minor",
+    "tags": [
+      "vox",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://vox/10",
+    "previewUrl": "virtual://preview/vox/10",
+    "waveformData": []
+  },
+  {
+    "id": "loop-011",
+    "name": "Studio Kick 11",
+    "bpm": 130,
+    "key": "F major",
+    "tags": [
+      "kick",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://kick/11",
+    "previewUrl": "virtual://preview/kick/11",
+    "waveformData": []
+  },
+  {
+    "id": "loop-012",
+    "name": "Studio Snare 12",
+    "bpm": 140,
+    "key": "G minor",
+    "tags": [
+      "snare",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://snare/12",
+    "previewUrl": "virtual://preview/snare/12",
+    "waveformData": []
+  },
+  {
+    "id": "loop-013",
+    "name": "Studio Hat 13",
+    "bpm": 90,
+    "key": "A major",
+    "tags": [
+      "hat",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://hat/13",
+    "previewUrl": "virtual://preview/hat/13",
+    "waveformData": []
+  },
+  {
+    "id": "loop-014",
+    "name": "Studio Perc 14",
+    "bpm": 100,
+    "key": "B minor",
+    "tags": [
+      "perc",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://perc/14",
+    "previewUrl": "virtual://preview/perc/14",
+    "waveformData": []
+  },
+  {
+    "id": "loop-015",
+    "name": "Studio Bass 15",
+    "bpm": 110,
+    "key": "C major",
+    "tags": [
+      "bass",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://bass/15",
+    "previewUrl": "virtual://preview/bass/15",
+    "waveformData": []
+  },
+  {
+    "id": "loop-016",
+    "name": "Studio Pad 16",
+    "bpm": 120,
+    "key": "D minor",
+    "tags": [
+      "pad",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://pad/16",
+    "previewUrl": "virtual://preview/pad/16",
+    "waveformData": []
+  },
+  {
+    "id": "loop-017",
+    "name": "Studio Lead 17",
+    "bpm": 130,
+    "key": "E major",
+    "tags": [
+      "lead",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://lead/17",
+    "previewUrl": "virtual://preview/lead/17",
+    "waveformData": []
+  },
+  {
+    "id": "loop-018",
+    "name": "Studio Keys 18",
+    "bpm": 140,
+    "key": "F minor",
+    "tags": [
+      "keys",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://keys/18",
+    "previewUrl": "virtual://preview/keys/18",
+    "waveformData": []
+  },
+  {
+    "id": "loop-019",
+    "name": "Studio Fx 19",
+    "bpm": 90,
+    "key": "G major",
+    "tags": [
+      "fx",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://fx/19",
+    "previewUrl": "virtual://preview/fx/19",
+    "waveformData": []
+  },
+  {
+    "id": "loop-020",
+    "name": "Studio Vox 20",
+    "bpm": 100,
+    "key": "A minor",
+    "tags": [
+      "vox",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://vox/20",
+    "previewUrl": "virtual://preview/vox/20",
+    "waveformData": []
+  },
+  {
+    "id": "loop-021",
+    "name": "Studio Kick 21",
+    "bpm": 110,
+    "key": "B major",
+    "tags": [
+      "kick",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://kick/21",
+    "previewUrl": "virtual://preview/kick/21",
+    "waveformData": []
+  },
+  {
+    "id": "loop-022",
+    "name": "Studio Snare 22",
+    "bpm": 120,
+    "key": "C minor",
+    "tags": [
+      "snare",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://snare/22",
+    "previewUrl": "virtual://preview/snare/22",
+    "waveformData": []
+  },
+  {
+    "id": "loop-023",
+    "name": "Studio Hat 23",
+    "bpm": 130,
+    "key": "D major",
+    "tags": [
+      "hat",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://hat/23",
+    "previewUrl": "virtual://preview/hat/23",
+    "waveformData": []
+  },
+  {
+    "id": "loop-024",
+    "name": "Studio Perc 24",
+    "bpm": 140,
+    "key": "E minor",
+    "tags": [
+      "perc",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://perc/24",
+    "previewUrl": "virtual://preview/perc/24",
+    "waveformData": []
+  },
+  {
+    "id": "loop-025",
+    "name": "Studio Bass 25",
+    "bpm": 90,
+    "key": "F major",
+    "tags": [
+      "bass",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://bass/25",
+    "previewUrl": "virtual://preview/bass/25",
+    "waveformData": []
+  },
+  {
+    "id": "loop-026",
+    "name": "Studio Pad 26",
+    "bpm": 100,
+    "key": "G minor",
+    "tags": [
+      "pad",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://pad/26",
+    "previewUrl": "virtual://preview/pad/26",
+    "waveformData": []
+  },
+  {
+    "id": "loop-027",
+    "name": "Studio Lead 27",
+    "bpm": 110,
+    "key": "A major",
+    "tags": [
+      "lead",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://lead/27",
+    "previewUrl": "virtual://preview/lead/27",
+    "waveformData": []
+  },
+  {
+    "id": "loop-028",
+    "name": "Studio Keys 28",
+    "bpm": 120,
+    "key": "B minor",
+    "tags": [
+      "keys",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://keys/28",
+    "previewUrl": "virtual://preview/keys/28",
+    "waveformData": []
+  },
+  {
+    "id": "loop-029",
+    "name": "Studio Fx 29",
+    "bpm": 130,
+    "key": "C major",
+    "tags": [
+      "fx",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://fx/29",
+    "previewUrl": "virtual://preview/fx/29",
+    "waveformData": []
+  },
+  {
+    "id": "loop-030",
+    "name": "Studio Vox 30",
+    "bpm": 140,
+    "key": "D minor",
+    "tags": [
+      "vox",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://vox/30",
+    "previewUrl": "virtual://preview/vox/30",
+    "waveformData": []
+  },
+  {
+    "id": "loop-031",
+    "name": "Studio Kick 31",
+    "bpm": 90,
+    "key": "E major",
+    "tags": [
+      "kick",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://kick/31",
+    "previewUrl": "virtual://preview/kick/31",
+    "waveformData": []
+  },
+  {
+    "id": "loop-032",
+    "name": "Studio Snare 32",
+    "bpm": 100,
+    "key": "F minor",
+    "tags": [
+      "snare",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://snare/32",
+    "previewUrl": "virtual://preview/snare/32",
+    "waveformData": []
+  },
+  {
+    "id": "loop-033",
+    "name": "Studio Hat 33",
+    "bpm": 110,
+    "key": "G major",
+    "tags": [
+      "hat",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://hat/33",
+    "previewUrl": "virtual://preview/hat/33",
+    "waveformData": []
+  },
+  {
+    "id": "loop-034",
+    "name": "Studio Perc 34",
+    "bpm": 120,
+    "key": "A minor",
+    "tags": [
+      "perc",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://perc/34",
+    "previewUrl": "virtual://preview/perc/34",
+    "waveformData": []
+  },
+  {
+    "id": "loop-035",
+    "name": "Studio Bass 35",
+    "bpm": 130,
+    "key": "B major",
+    "tags": [
+      "bass",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://bass/35",
+    "previewUrl": "virtual://preview/bass/35",
+    "waveformData": []
+  },
+  {
+    "id": "loop-036",
+    "name": "Studio Pad 36",
+    "bpm": 140,
+    "key": "C minor",
+    "tags": [
+      "pad",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://pad/36",
+    "previewUrl": "virtual://preview/pad/36",
+    "waveformData": []
+  },
+  {
+    "id": "loop-037",
+    "name": "Studio Lead 37",
+    "bpm": 90,
+    "key": "D major",
+    "tags": [
+      "lead",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://lead/37",
+    "previewUrl": "virtual://preview/lead/37",
+    "waveformData": []
+  },
+  {
+    "id": "loop-038",
+    "name": "Studio Keys 38",
+    "bpm": 100,
+    "key": "E minor",
+    "tags": [
+      "keys",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://keys/38",
+    "previewUrl": "virtual://preview/keys/38",
+    "waveformData": []
+  },
+  {
+    "id": "loop-039",
+    "name": "Studio Fx 39",
+    "bpm": 110,
+    "key": "F major",
+    "tags": [
+      "fx",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://fx/39",
+    "previewUrl": "virtual://preview/fx/39",
+    "waveformData": []
+  },
+  {
+    "id": "loop-040",
+    "name": "Studio Vox 40",
+    "bpm": 120,
+    "key": "G minor",
+    "tags": [
+      "vox",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://vox/40",
+    "previewUrl": "virtual://preview/vox/40",
+    "waveformData": []
+  },
+  {
+    "id": "loop-041",
+    "name": "Studio Kick 41",
+    "bpm": 130,
+    "key": "A major",
+    "tags": [
+      "kick",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://kick/41",
+    "previewUrl": "virtual://preview/kick/41",
+    "waveformData": []
+  },
+  {
+    "id": "loop-042",
+    "name": "Studio Snare 42",
+    "bpm": 140,
+    "key": "B minor",
+    "tags": [
+      "snare",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://snare/42",
+    "previewUrl": "virtual://preview/snare/42",
+    "waveformData": []
+  },
+  {
+    "id": "loop-043",
+    "name": "Studio Hat 43",
+    "bpm": 90,
+    "key": "C major",
+    "tags": [
+      "hat",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://hat/43",
+    "previewUrl": "virtual://preview/hat/43",
+    "waveformData": []
+  },
+  {
+    "id": "loop-044",
+    "name": "Studio Perc 44",
+    "bpm": 100,
+    "key": "D minor",
+    "tags": [
+      "perc",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://perc/44",
+    "previewUrl": "virtual://preview/perc/44",
+    "waveformData": []
+  },
+  {
+    "id": "loop-045",
+    "name": "Studio Bass 45",
+    "bpm": 110,
+    "key": "E major",
+    "tags": [
+      "bass",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://bass/45",
+    "previewUrl": "virtual://preview/bass/45",
+    "waveformData": []
+  },
+  {
+    "id": "loop-046",
+    "name": "Studio Pad 46",
+    "bpm": 120,
+    "key": "F minor",
+    "tags": [
+      "pad",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://pad/46",
+    "previewUrl": "virtual://preview/pad/46",
+    "waveformData": []
+  },
+  {
+    "id": "loop-047",
+    "name": "Studio Lead 47",
+    "bpm": 130,
+    "key": "G major",
+    "tags": [
+      "lead",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://lead/47",
+    "previewUrl": "virtual://preview/lead/47",
+    "waveformData": []
+  },
+  {
+    "id": "loop-048",
+    "name": "Studio Keys 48",
+    "bpm": 140,
+    "key": "A minor",
+    "tags": [
+      "keys",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://keys/48",
+    "previewUrl": "virtual://preview/keys/48",
+    "waveformData": []
+  },
+  {
+    "id": "loop-049",
+    "name": "Studio Fx 49",
+    "bpm": 90,
+    "key": "B major",
+    "tags": [
+      "fx",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://fx/49",
+    "previewUrl": "virtual://preview/fx/49",
+    "waveformData": []
+  },
+  {
+    "id": "loop-050",
+    "name": "Studio Vox 50",
+    "bpm": 100,
+    "key": "C minor",
+    "tags": [
+      "vox",
+      "seed",
+      "offline"
+    ],
+    "url": "virtual://vox/50",
+    "previewUrl": "virtual://preview/vox/50",
+    "waveformData": []
+  }
+]
